@@ -80,6 +80,11 @@ type VP8Packet struct {
 	PictureID uint16 /* 8 or 16 bits, picture ID */
 	TL0PICIDX uint8  /* 8 bits temporal level zero index */
 
+	HasTlIndex bool
+	TlIndex    uint8
+	Y          uint8
+	KeyIndex   uint8
+
 	Payload []byte
 }
 
@@ -125,6 +130,12 @@ func (p *VP8Packet) Unmarshal(payload []byte) ([]byte, error) {
 	}
 
 	if p.T == 1 || p.K == 1 {
+		byte := payload[payloadIndex]
+
+		p.HasTlIndex = true
+		p.TlIndex    = (byte >> 6) & 0x03
+		p.Y          = (byte >> 5) & 0x01
+		p.KeyIndex   = byte & 0x1F
 		payloadIndex++
 	}
 
@@ -134,3 +145,40 @@ func (p *VP8Packet) Unmarshal(payload []byte) ([]byte, error) {
 	p.Payload = payload[payloadIndex:]
 	return p.Payload, nil
 }
+
+type VP8PayloadDescriptor struct {
+	Packet       VP8Packet
+	KeyFrameFlag bool
+}
+
+func (p *VP8PayloadDescriptor) IsKeyFrame() bool {
+	return p.KeyFrameFlag
+}
+
+func (p *VP8PayloadDescriptor) Parse(date []byte, dateLen int, _ interface{}, _ int) PayloadDescriptor {
+	_, err := p.Packet.Unmarshal(date)
+	if (nil != err) {
+		fmt.Println("VP8PayloadDescriptor Parse fail")
+		return nil
+	}
+
+	if ((p.Packet.S > 0) && (0 == p.Packet.PID) && (p.Packet.Payload[0]&0x01 == 0)) {
+		p.KeyFrameFlag = true
+	}
+
+	return p
+}
+
+func (p *VP8PayloadDescriptor)GetSpatialLayer() uint8{
+	return 0
+}
+
+func (p *VP8PayloadDescriptor)GetTemporalLayer() uint8{
+	if p.Packet.HasTlIndex == true{
+		return p.Packet.TlIndex
+	}
+
+	return 0
+}
+
+

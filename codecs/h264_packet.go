@@ -1,5 +1,9 @@
 package codecs
 
+import (
+	"github.com/pion/utils"
+)
+
 // H264Payloader payloads H264 packets
 type H264Payloader struct{}
 
@@ -128,3 +132,66 @@ func (p *H264Payloader) Payload(mtu int, payload []byte) [][]byte {
 
 	return payloads
 }
+
+
+type H264PayloadDescriptor struct {
+	KeyFrameFlag bool
+	Tid          uint8
+}
+
+func (p *H264PayloadDescriptor)IsKeyFrame() bool{
+	return p.KeyFrameFlag
+}
+
+func (Pd *H264PayloadDescriptor)Parse(date []byte, dateLen int, _ interface{}, _ int) PayloadDescriptor{
+	if (dateLen < 2) {
+		return nil
+	}
+
+	nal := date[0] & 0x1F
+
+	switch nal {
+	case 7:
+		Pd.KeyFrameFlag = true
+	case 24:
+		offset := 1
+		dateLen -= 1
+
+		for dateLen >= 3 {
+			naluSize := int(utils.Get2Bytes(date, offset))
+			subnal := date[offset+2] & 0x1F
+			if (7 == subnal) {
+				Pd.KeyFrameFlag = true
+				break
+			}
+
+			if (dateLen < (naluSize + 2)) {
+				break
+			}
+
+			offset += naluSize + 2
+			dateLen -= naluSize + 2
+
+		}
+	case 28:
+	case 29:
+		subnal := date[1] & 0x1F;
+		startBit := date[1] & 0x80;
+		if (subnal == 7 && startBit == 128) {
+			Pd.KeyFrameFlag = true
+		}
+
+	}
+
+	return Pd
+
+}
+
+func (p *H264PayloadDescriptor)GetSpatialLayer() uint8{
+	return 0
+}
+
+func (p *H264PayloadDescriptor)GetTemporalLayer() uint8{
+	return p.Tid
+}
+
