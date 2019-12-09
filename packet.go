@@ -3,6 +3,9 @@ package rtp
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/mudutv/rtp/codecs"
+	"git.mudu.tv/myun/rtc-server/rtc/utils"
+	"github.com/pkg/errors"
 	"io"
 )
 
@@ -25,12 +28,25 @@ type Header struct {
 	ExtensionPayload []byte
 }
 
+type BytesExtension struct {
+	id uint8
+	len uint8
+	value []byte
+}
+
 // Packet represents an RTP Packet
 // NOTE: Raw is populated by Marshal/Unmarshal and should not be modified
 type Packet struct {
 	Header
 	Raw     []byte
+	RawLen  int
 	Payload []byte
+	PayloadLength  int
+	PayloadPadding uint8
+
+	MapBytesExtensions map[uint8]BytesExtension
+	PayloadDescriptorHandler codecs.PayloadDescriptor
+
 }
 
 const (
@@ -142,7 +158,27 @@ func (p *Packet) Unmarshal(rawPacket []byte) error {
 	}
 
 	p.Payload = rawPacket[p.PayloadOffset:]
+	p.PayloadLength = len(p.Payload)
+
 	p.Raw = rawPacket
+	p.RawLen = len(p.Raw)
+
+	p.PayloadPadding = 0
+	if (p.Padding == true){
+		if (p.PayloadLength == 0) {
+			return errors.New("padding bit is set but no space for a padding byte, packet discarded")
+		}
+		p.PayloadPadding = p.Raw[p.RawLen - 1]
+		if (0 == p.PayloadPadding){
+			return errors.New("padding byte cannot be 0, packet discarded")
+		}
+
+		if (p.PayloadLength < int(p.PayloadPadding) ) {
+			return errors.New("number of padding octets is greater than available space for payload, packet discarded")
+		}
+		p.PayloadLength -= int(p.PayloadPadding)
+	}
+	p.ParseExtensions()
 	return nil
 }
 
@@ -272,4 +308,165 @@ func (p *Packet) MarshalTo(buf []byte) (n int, err error) {
 // MarshalSize returns the size of the packet once marshaled.
 func (p *Packet) MarshalSize() int {
 	return p.Header.MarshalSize() + len(p.Payload)
+}
+
+// Parse RFC 5285 header extension.
+func (p *Packet)ParseExtensions(){
+	externLen := len(p.ExtensionPayload)
+
+	//fmt.Println("ParseExtensions [%v][%v]",p.ExtensionProfile,p.ExtensionProfile & 65520)
+	if (p.ExtensionProfile == 0xBEDE){
+		//fmt.Println("ParseExtensions OneByte")
+		p.MapBytesExtensions = make(map[uint8]BytesExtension)
+		i:=0
+		for i <  externLen{
+			id :=  (p.ExtensionPayload[i] & 0xF0) >> 4
+			len := (p.ExtensionPayload[i] & 0x0F) + 1
+			if (id == 15){
+				break
+			}
+
+			if (id != 0){
+				if (i + 1 + int(len)) > externLen{
+					fmt.Println("not enough space for the announced One-Byte header extension element value")
+					break
+				}
+				p.MapBytesExtensions[id] = BytesExtension{id, len, p.ExtensionPayload[i + 1:i + 1 + int(len)]}
+				i = i + 1 + int(len)
+			}else{
+				i++
+			}
+			for ((i < externLen) && (0 == p.ExtensionPayload[i])){
+				i++
+			}
+		}
+	}else if ((p.ExtensionProfile & 65520) == 4096){
+		//fmt.Println("ParseExtensions TwoByte")
+		p.MapBytesExtensions = make(map[uint8]BytesExtension)
+		i := 0
+		for i + 1< externLen{
+			id := p.ExtensionPayload[i]
+			len := p.ExtensionPayload[i + 1]
+			if (id != 0){
+				if ((i + 2 + int(len)) > externLen){
+					fmt.Println("not enough space for the announced Two-Bytes header extension element value")
+					break
+				}
+				p.MapBytesExtensions[id] = BytesExtension{id, len, p.ExtensionPayload[i + 2:i + 2 + int(len)]}
+				i = i + 2 + int(len)
+			}else{
+				i++
+			}
+
+			for (i < externLen) && (0 == p.ExtensionPayload[i]){
+				i++
+			}
+		}
+	}
+
+	//for k,v := range p.MapBytesExtensions{
+	//	fmt.Printf("MapBytesExtensions k[%v] v[%v]\n",k,v)
+	//}
+}
+
+func (p *Packet)GetExtension(id uint8) []byte{
+	if (0 == id){
+		return nil
+	}
+
+	v,ok := p.MapBytesExtensions[id]
+	if (false == ok){
+		return nil
+	}
+
+	return v.value[:]
+
+}
+
+func (p *Packet)IsKeyFrame()bool{
+	if nil == p.PayloadDescriptorHandler{
+		return false
+	}
+
+	return p.PayloadDescriptorHandler.IsKeyFrame()
+}
+
+func (p *Packet)ReadAbsSendTime(absId uint8, time *uint32) bool{
+	extenValue := p.GetExtension(absId)
+	if (3 != len(extenValue)){
+		return false
+	}
+	*time = utils.Get3Bytes(extenValue,0)
+	return true
+
+}
+
+func (p *Packet) RtxDecode(payloadType uint8, ssrc uint32) bool {
+	//4) a=fmtp:97 apt=96
+	//
+	//   表示96类型的rtp包的重传包采用97的payloadtype的rtx包保护，rtx包的rtp header中的sequence num与rtp不一致，但timestamp一致。
+	//
+	//   Rtx包的payload的前两个字节为原重传rtp包的rtp sequencenum
+
+
+
+	//所以这里替换，原来包的ssrc，seq，同时如果原始包里有pad标识，那么去掉pad的扩展字节部分，进行发送
+	if (len(p.Payload) < 2) {
+		return false
+	}
+
+	p.PayloadType = payloadType
+	p.SequenceNumber = utils.Get2Bytes(p.Payload, 0)
+	p.SSRC = ssrc
+	p.Payload = p.Payload[2:]
+	p.PayloadLength = p.PayloadLength - 2
+	p.RawLen = p.RawLen - 2
+
+	if (p.PayloadPadding != 0) {
+		p.Padding = false
+
+		p.RawLen -= int(p.PayloadPadding)
+		p.Payload = p.Payload[:p.PayloadLength - int(p.PayloadPadding)]
+
+		p.PayloadPadding = 0
+
+	}
+
+	return true
+
+}
+
+
+func (p *Packet)GetSpatialLayer() uint8{
+	if (nil == p.PayloadDescriptorHandler){
+		return 0
+	}
+
+	return p.PayloadDescriptorHandler.GetSpatialLayer()
+}
+
+func (p *Packet)GetTemporalLayer() uint8{
+	if (nil == p.PayloadDescriptorHandler){
+		return 0
+	}
+
+	return p.PayloadDescriptorHandler.GetTemporalLayer()
+}
+
+
+func (p *Packet)Clone() *Packet{
+	packet := &Packet{}
+	*packet = *p
+
+
+	packet.Raw = make([]byte, len(p.Raw),  len(p.Raw))
+	copy(packet.Raw, p.Raw)
+
+	//由于发送rtp只用到 s.sendRTP(&p.Header, p.Payload)，所以暂时只拷贝这些
+	packet.Payload = make([]byte, len(p.Payload),  len(p.Payload))
+	copy(packet.Payload, p.Payload)
+
+
+	return packet
+
 }
