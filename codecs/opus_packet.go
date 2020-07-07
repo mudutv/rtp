@@ -18,7 +18,7 @@ func (p *OpusPayloader) Payload(mtu int, payload []byte) [][]byte {
 	return [][]byte{out}
 }
 
-// OpusPacket represents the VP8 header that is stored in the payload of an RTP Packet
+// OpusPacket represents the Opus header that is stored in the payload of an RTP Packet
 type OpusPacket struct {
 	Payload []byte
 }
@@ -33,4 +33,16 @@ func (p *OpusPacket) Unmarshal(packet []byte) ([]byte, error) {
 	}
 	p.Payload = packet
 	return packet, nil
+}
+
+// OpusPartitionHeadChecker checks Opus partition head
+type OpusPartitionHeadChecker struct{}
+
+// IsPartitionHead checks whether if this is a head of the Opus partition
+func (*OpusPartitionHeadChecker) IsPartitionHead(packet []byte) bool {
+	p := &OpusPacket{}
+	if _, err := p.Unmarshal(packet); err != nil {
+		return false
+	}
+	return true
 }

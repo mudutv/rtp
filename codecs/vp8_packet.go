@@ -13,7 +13,6 @@ const (
 
 // Payload fragments a VP8 packet across one or more byte arrays
 func (p *VP8Payloader) Payload(mtu int, payload []byte) [][]byte {
-
 	/*
 	 * https://tools.ietf.org/html/rfc7741#section-4.2
 	 *
@@ -80,6 +79,7 @@ type VP8Packet struct {
 	PictureID uint16 /* 8 or 16 bits, picture ID */
 	TL0PICIDX uint8  /* 8 bits temporal level zero index */
 
+	//miaobinwei
 	HasTlIndex bool
 	TlIndex    uint8
 	Y          uint8
@@ -130,6 +130,7 @@ func (p *VP8Packet) Unmarshal(payload []byte) ([]byte, error) {
 	}
 
 	if p.T == 1 || p.K == 1 {
+		//miaobinwei
 		byte := payload[payloadIndex]
 
 		p.HasTlIndex = true
@@ -146,6 +147,19 @@ func (p *VP8Packet) Unmarshal(payload []byte) ([]byte, error) {
 	return p.Payload, nil
 }
 
+// VP8PartitionHeadChecker checks VP8 partition head
+type VP8PartitionHeadChecker struct{}
+
+// IsPartitionHead checks whether if this is a head of the VP8 partition
+func (*VP8PartitionHeadChecker) IsPartitionHead(packet []byte) bool {
+	p := &VP8Packet{}
+	if _, err := p.Unmarshal(packet); err != nil {
+		return false
+	}
+	return p.S == 1
+}
+
+//miaobinwei
 type VP8PayloadDescriptor struct {
 	Packet       VP8Packet
 	KeyFrameFlag bool

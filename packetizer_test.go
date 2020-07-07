@@ -2,30 +2,12 @@ package rtp
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/mudutv/rtp/codecs"
-	"github.com/stretchr/testify/assert"
 )
-
-func TestNtpConversion(t *testing.T) {
-	loc := time.FixedZone("UTC-5", -5*60*60)
-
-	tests := []struct {
-		t time.Time
-		n uint64
-	}{
-		{t: time.Date(1985, time.June, 23, 4, 0, 0, 0, loc), n: 0xa0c65b1000000000},
-		{t: time.Date(1999, time.December, 31, 23, 59, 59, 500000, loc), n: 0xbc18084f0020c49b},
-		{t: time.Date(2019, time.March, 27, 13, 39, 30, 8675309, loc), n: 0xe04641e202388b88},
-	}
-
-	for _, in := range tests {
-		out := toNtpTime(in.t)
-		assert.Equal(t, in.n, out)
-	}
-}
 
 func TestPacketizer(t *testing.T) {
 	multiplepayload := make([]byte, 128)
@@ -40,5 +22,48 @@ func TestPacketizer(t *testing.T) {
 		}
 		t.Fatalf("Generated %d packets instead of 2\n%s", len(packets), packetlengths)
 	}
+}
 
+func TestPacketizer_AbsSendTime(t *testing.T) {
+	//use the G722 payloader here, because it's very simple and all 0s is valid G722 data.
+	pktizer := NewPacketizer(100, 98, 0x1234ABCD, &codecs.G722Payloader{}, NewFixedSequencer(1234), 90000)
+	pktizer.(*packetizer).Timestamp = 45678
+	pktizer.(*packetizer).timegen = func() time.Time {
+		return time.Date(1985, time.June, 23, 4, 0, 0, 0, time.FixedZone("UTC-5", -5*60*60))
+		// (0xa0c65b1000000000>>14) & 0xFFFFFF  = 0x400000
+	}
+	pktizer.EnableAbsSendTime(1)
+
+	payload := []byte{0x11, 0x12, 0x13, 0x14}
+	packets := pktizer.Packetize(payload, 2000)
+
+	expected := &Packet{
+		Header: Header{
+			Version:          2,
+			Padding:          false,
+			Extension:        true,
+			Marker:           true,
+			PayloadOffset:    0, // not set by Packetize() at now
+			PayloadType:      98,
+			SequenceNumber:   1234,
+			Timestamp:        45678,
+			SSRC:             0x1234ABCD,
+			CSRC:             nil,
+			ExtensionProfile: 0xBEDE,
+			Extensions: []Extension{
+				{
+					id:      1,
+					payload: []byte{0x40, 0, 0},
+				},
+			},
+		},
+		Payload: []byte{0x11, 0x12, 0x13, 0x14},
+	}
+
+	if len(packets) != 1 {
+		t.Fatalf("Generated %d packets instead of 1", len(packets))
+	}
+	if !reflect.DeepEqual(expected, packets[0]) {
+		t.Errorf("Packetize failed\nexpected: %v\n     got: %v", expected, packets[0])
+	}
 }
