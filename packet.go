@@ -35,24 +35,19 @@ type Header struct {
 	Extensions       []Extension
 }
 
-//miaobinwei
-type BytesExtension struct {
-	id uint8
-	len uint8
-	value []byte
-}
 
 // Packet represents an RTP Packet
 // NOTE: Raw is populated by Marshal/Unmarshal and should not be modified
 type Packet struct {
 	Header
 	Raw     []byte
-	RawLen  int
 	Payload []byte
+	
+	
+	//miaobinwei
+	RawLen  int
 	PayloadLength  int
 	PayloadPadding uint8
-
-	//MapBytesExtensions map[uint8]BytesExtension
 	PayloadDescriptorHandler codecs.PayloadDescriptor
 }
 
@@ -244,7 +239,7 @@ func (p *Packet) Unmarshal(rawPacket []byte) error {
 		}
 		p.PayloadLength -= int(p.PayloadPadding)
 	}
-	//p.ParseExtensions()
+
 	return nil
 }
 
@@ -501,80 +496,9 @@ func (p *Packet) MarshalSize() int {
 	return p.Header.MarshalSize() + len(p.Payload)
 }
 
+
+
 //miaobinwei
-// Parse RFC 5285 header extension.
-//func (p *Packet)ParseExtensions(){
-//	externLen := len(p.ExtensionPayload)
-//
-//	//fmt.Println("ParseExtensions [%v][%v]",p.ExtensionProfile,p.ExtensionProfile & 65520)
-//	if (p.ExtensionProfile == 0xBEDE){
-//		//fmt.Println("ParseExtensions OneByte")
-//		p.MapBytesExtensions = make(map[uint8]BytesExtension)
-//		i:=0
-//		for i <  externLen{
-//			id :=  (p.ExtensionPayload[i] & 0xF0) >> 4
-//			len := (p.ExtensionPayload[i] & 0x0F) + 1
-//			if (id == 15){
-//				break
-//			}
-//
-//			if (id != 0){
-//				if (i + 1 + int(len)) > externLen{
-//					fmt.Println("not enough space for the announced One-Byte header extension element value")
-//					break
-//				}
-//				p.MapBytesExtensions[id] = BytesExtension{id, len, p.ExtensionPayload[i + 1:i + 1 + int(len)]}
-//				i = i + 1 + int(len)
-//			}else{
-//				i++
-//			}
-//			for ((i < externLen) && (0 == p.ExtensionPayload[i])){
-//				i++
-//			}
-//		}
-//	}else if ((p.ExtensionProfile & 65520) == 4096){
-//		//fmt.Println("ParseExtensions TwoByte")
-//		p.MapBytesExtensions = make(map[uint8]BytesExtension)
-//		i := 0
-//		for i + 1< externLen{
-//			id := p.ExtensionPayload[i]
-//			len := p.ExtensionPayload[i + 1]
-//			if (id != 0){
-//				if ((i + 2 + int(len)) > externLen){
-//					fmt.Println("not enough space for the announced Two-Bytes header extension element value")
-//					break
-//				}
-//				p.MapBytesExtensions[id] = BytesExtension{id, len, p.ExtensionPayload[i + 2:i + 2 + int(len)]}
-//				i = i + 2 + int(len)
-//			}else{
-//				i++
-//			}
-//
-//			for (i < externLen) && (0 == p.ExtensionPayload[i]){
-//				i++
-//			}
-//		}
-//	}
-//
-//	//for k,v := range p.MapBytesExtensions{
-//	//	fmt.Printf("MapBytesExtensions k[%v] v[%v]\n",k,v)
-//	//}
-//}
-
-//func (p *Packet)GetExtension(id uint8) []byte{
-//	if (0 == id){
-//		return nil
-//	}
-//
-//	v,ok := p.MapBytesExtensions[id]
-//	if (false == ok){
-//		return nil
-//	}
-//
-//	return v.value[:]
-//
-//}
-
 func (p *Packet)IsKeyFrame()bool{
 	if nil == p.PayloadDescriptorHandler{
 		return false
