@@ -262,4 +262,3 @@ func (p *H264PayloadDescriptor)GetSpatialLayer() uint8{
 func (p *H264PayloadDescriptor)GetTemporalLayer() uint8{
 	return p.Tid
 }
-

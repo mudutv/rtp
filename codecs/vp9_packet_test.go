@@ -123,6 +123,49 @@ func TestVP9Packet_Unmarshal(t *testing.T) {
 			b:   []byte{0xD0},
 			err: errShortPacket,
 		},
+		"ScalabilityStructureResolutionsNoPayload": {
+			b: []byte{
+				0x0A,
+				(1 << 5) | (1 << 4) | 0, // NS:1 Y:1 G:0
+				640 >> 8, 640 & 0xff,
+				360 >> 8, 360 & 0xff,
+				1280 >> 8, 1280 & 0xff,
+				720 >> 8, 720 & 0xff,
+			},
+			pkt: VP9Packet{
+				B:       true,
+				V:       true,
+				NS:      1,
+				Y:       true,
+				G:       false,
+				NG:      0,
+				Width:   []uint16{640, 1280},
+				Height:  []uint16{360, 720},
+				Payload: []byte{},
+			},
+		},
+		"ScalabilityStructureNoPayload": {
+			b: []byte{
+				0x0A,
+				(1 << 5) | (0 << 4) | (1 << 3), // NS:1 Y:0 G:1
+				2,
+				(0 << 5) | (1 << 4) | (0 << 2) | 0, // T:0 U:1 R:0 -
+				(2 << 5) | (0 << 4) | (1 << 2) | 0, // T:2 U:0 R:1 -
+				33,
+			},
+			pkt: VP9Packet{
+				B:       true,
+				V:       true,
+				NS:      1,
+				Y:       false,
+				G:       true,
+				NG:      2,
+				PGTID:   []uint8{0, 2},
+				PGU:     []bool{true, false},
+				PGPDiff: [][]uint8{{}, {33}},
+				Payload: []byte{},
+			},
+		},
 	}
 	for name, c := range cases {
 		c := c
@@ -214,7 +257,11 @@ func TestVP9Payloader_Payload(t *testing.T) {
 		},
 	}
 	for name, c := range cases {
-		pck := VP9Payloader{Rand: rand.New(rand.NewSource(0))}
+		pck := VP9Payloader{
+			InitialPictureIDFn: func() uint16 {
+				return uint16(rand.New(rand.NewSource(0)).Int31n(0x7FFF))
+			},
+		}
 		c := c
 		t.Run(fmt.Sprintf("%s_MTU%d", name, c.mtu), func(t *testing.T) {
 			res := [][]byte{}
@@ -227,7 +274,11 @@ func TestVP9Payloader_Payload(t *testing.T) {
 		})
 	}
 	t.Run("PictureIDOverflow", func(t *testing.T) {
-		pck := VP9Payloader{Rand: rand.New(rand.NewSource(0))}
+		pck := VP9Payloader{
+			InitialPictureIDFn: func() uint16 {
+				return uint16(rand.New(rand.NewSource(0)).Int31n(0x7FFF))
+			},
+		}
 		pPrev := VP9Packet{}
 		for i := 0; i < 0x8000; i++ {
 			res := pck.Payload(4, []byte{0x01})

@@ -9,9 +9,9 @@
   <a href="https://sourcegraph.com/github.com/mudutv/rtp?badge"><img src="https://sourcegraph.com/github.com/mudutv/rtp/-/badge.svg" alt="Sourcegraph Widget"></a>
   <a href="https://pion.ly/slack"><img src="https://img.shields.io/badge/join-us%20on%20slack-gray.svg?longCache=true&logo=slack&colorB=brightgreen" alt="Slack Widget"></a>
   <br>
-  <a href="https://travis-ci.org/pion/rtp"><img src="https://travis-ci.org/pion/rtp.svg?branch=master" alt="Build Status"></a>
-  <a href="https://pkg.go.dev/github.com/pion/rtp"><img src="https://godoc.org/github.com/pion/rtp?status.svg" alt="GoDoc"></a>
-  <a href="https://codecov.io/gh/pion/rtp"><img src="https://codecov.io/gh/pion/rtp/branch/master/graph/badge.svg" alt="Coverage Status"></a>
+  <a href="https://travis-ci.org/mudutv/rtp"><img src="https://travis-ci.org/mudutv/rtp.svg?branch=master" alt="Build Status"></a>
+  <a href="https://pkg.go.dev/github.com/mudutv/rtp"><img src="https://godoc.org/github.com/mudutv/rtp?status.svg" alt="GoDoc"></a>
+  <a href="https://codecov.io/gh/mudutv/rtp"><img src="https://codecov.io/gh/mudutv/rtp/branch/master/graph/badge.svg" alt="Coverage Status"></a>
   <a href="https://goreportcard.com/report/github.com/mudutv/rtp"><img src="https://goreportcard.com/badge/github.com/mudutv/rtp" alt="Go Report Card"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
@@ -45,6 +45,7 @@ Check out the **[contributing wiki](https://github.com/mudutv/webrtc/wiki/Contri
 * [Simone Gotti](https://github.com/sgotti)
 * [Guilherme Souza](https://github.com/gqgs)
 * [Rob Lofthouse](https://github.com/roblofthouse)
+* [Kazuyuki Honda](https://github.com/hakobera)
 
 ### License
 MIT License - see [LICENSE](LICENSE) for full text

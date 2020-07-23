@@ -1,2 +1,4 @@
+github.com/mudutv/randutil v0.1.1-0.20200723094734-c7070a59da9a h1:bB7u8bS7o+xkK/GVz/jnO9XnbIu5THtdpsW9F6NPsIM=
+github.com/mudutv/randutil v0.1.1-0.20200723094734-c7070a59da9a/go.mod h1:YzdB3c4uYRGRO8eZzYcxhXcdkb1+Vq3je0dflKR0Tak=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

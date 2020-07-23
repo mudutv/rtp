@@ -79,13 +79,14 @@ type VP8Packet struct {
 	PictureID uint16 /* 8 or 16 bits, picture ID */
 	TL0PICIDX uint8  /* 8 bits temporal level zero index */
 
+	Payload []byte
+
+
 	//miaobinwei
 	HasTlIndex bool
 	TlIndex    uint8
 	Y          uint8
 	KeyIndex   uint8
-
-	Payload []byte
 }
 
 // Unmarshal parses the passed byte slice and stores the result in the VP8Packet this method is called upon
@@ -137,6 +138,7 @@ func (p *VP8Packet) Unmarshal(payload []byte) ([]byte, error) {
 		p.TlIndex    = (byte >> 6) & 0x03
 		p.Y          = (byte >> 5) & 0x01
 		p.KeyIndex   = byte & 0x1F
+
 		payloadIndex++
 	}
 
@@ -194,5 +196,4 @@ func (p *VP8PayloadDescriptor)GetTemporalLayer() uint8{
 
 	return 0
 }
-
 

@@ -9,7 +9,6 @@ import (
 	"github.com/mudutv/rtp/utils"
 )
 
-
 // Extension RTP Header extension
 type Extension struct {
 	id      uint8
@@ -35,15 +34,13 @@ type Header struct {
 	Extensions       []Extension
 }
 
-
 // Packet represents an RTP Packet
 // NOTE: Raw is populated by Marshal/Unmarshal and should not be modified
 type Packet struct {
 	Header
 	Raw     []byte
 	Payload []byte
-	
-	
+
 	//miaobinwei
 	RawLen  int
 	PayloadLength  int
@@ -496,8 +493,6 @@ func (p *Packet) MarshalSize() int {
 	return p.Header.MarshalSize() + len(p.Payload)
 }
 
-
-
 //miaobinwei
 func (p *Packet)IsKeyFrame()bool{
 	if nil == p.PayloadDescriptorHandler{
@@ -586,5 +581,3 @@ func (p *Packet)Clone() *Packet{
 	return packet
 
 }
-
-
